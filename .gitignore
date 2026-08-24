@@ -28,3 +28,5 @@ env/
 
 # Lab outputs (không commit, chỉ nộp evidence/)
 data/ragas_report.json
+data/faiss_cache/
+.cache/

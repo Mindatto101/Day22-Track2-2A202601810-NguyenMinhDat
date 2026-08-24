@@ -13,10 +13,22 @@ _root = Path(__file__).parent.parent
 load_dotenv(_root / ".env")
 
 # ── LangSmith — PHẢI set trước khi import LangChain ──────────────────────
-os.environ["LANGCHAIN_TRACING_V2"] = os.getenv("LANGCHAIN_TRACING_V2", "true")
-os.environ["LANGCHAIN_API_KEY"]    = os.getenv("LANGCHAIN_API_KEY", "")
-os.environ["LANGCHAIN_PROJECT"]    = os.getenv("LANGCHAIN_PROJECT", "day22-lab")
-os.environ["LANGCHAIN_ENDPOINT"]   = os.getenv("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")
+_tracing = os.getenv("LANGSMITH_TRACING", os.getenv("LANGCHAIN_TRACING_V2", "true"))
+_langsmith_key = os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY", "")
+_langsmith_project = os.getenv("LANGSMITH_PROJECT") or os.getenv("LANGCHAIN_PROJECT", "day22-lab")
+_langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT") or os.getenv(
+    "LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"
+)
+
+# Support both current LANGSMITH_* names and legacy LANGCHAIN_* names.
+os.environ["LANGSMITH_TRACING"] = _tracing
+os.environ["LANGCHAIN_TRACING_V2"] = _tracing
+os.environ["LANGSMITH_API_KEY"] = _langsmith_key
+os.environ["LANGCHAIN_API_KEY"] = _langsmith_key
+os.environ["LANGSMITH_PROJECT"] = _langsmith_project
+os.environ["LANGCHAIN_PROJECT"] = _langsmith_project
+os.environ["LANGSMITH_ENDPOINT"] = _langsmith_endpoint
+os.environ["LANGCHAIN_ENDPOINT"] = _langsmith_endpoint
 
 # ── Provider mặc định ─────────────────────────────────────────────────────
 # Đổi giá trị PROVIDER trong .env: openai | gemini | anthropic | ollama | openrouter
@@ -30,8 +42,17 @@ OPENAI_EMBEDDING_MODEL = os.getenv("OPENAI_EMBEDDING_MODEL", "text-embedding-3-s
 
 # ── Google Gemini ─────────────────────────────────────────────────────────
 GOOGLE_API_KEY          = os.getenv("GOOGLE_API_KEY", "")
-GEMINI_MODEL            = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
-GEMINI_EMBEDDING_MODEL  = os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-001")
+GEMINI_MODEL            = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
+GEMINI_EMBEDDING_MODEL  = os.getenv("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
+GEMINI_MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "2048"))
+RAGAS_EVALUATOR_MODELS = [
+    item.strip()
+    for item in os.getenv(
+        "RAGAS_EVALUATOR_MODELS",
+        "gemini-3.1-flash-lite-preview,gemini-3.1-flash-lite,gemini-3.1-flash-lite-preview,gemini-3.1-flash-lite",
+    ).split(",")
+    if item.strip()
+]
 
 # ── Anthropic ─────────────────────────────────────────────────────────────
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
@@ -44,12 +65,16 @@ OLLAMA_EMBEDDING_MODEL  = os.getenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text"
 
 # ── OpenRouter ────────────────────────────────────────────────────────────
 OPENROUTER_API_KEY  = os.getenv("OPENROUTER_API_KEY", "")
-OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+OPENROUTER_MODEL    = os.getenv("OPENROUTER_MODEL", "cohere/north-mini-code:free")
+OPENROUTER_EMBEDDING_MODEL = os.getenv(
+    "OPENROUTER_EMBEDDING_MODEL", "liquid/lfm-2.5-embedding-350m:free"
+)
+OPENROUTER_MAX_TOKENS = int(os.getenv("OPENROUTER_MAX_TOKENS", "512"))
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 # ── LangSmith ─────────────────────────────────────────────────────────────
-LANGSMITH_API_KEY = os.getenv("LANGCHAIN_API_KEY", "")
-LANGSMITH_PROJECT = os.getenv("LANGCHAIN_PROJECT", "day22-lab")
+LANGSMITH_API_KEY = _langsmith_key
+LANGSMITH_PROJECT = _langsmith_project
 
 
 def validate() -> bool:

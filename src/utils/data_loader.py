@@ -9,6 +9,7 @@ Cách dùng:
     vectorstore = build_vectorstore(chunks, embeddings)
 """
 from pathlib import Path
+import hashlib
 
 
 def load_knowledge_base(path: str = None) -> str:
@@ -63,7 +64,26 @@ def build_vectorstore(chunks: list, embeddings):
     """
     from langchain_community.vectorstores import FAISS
 
+    model = str(getattr(embeddings, "model", embeddings.__class__.__name__))
+    fingerprint = hashlib.sha256(
+        (model + "\n" + "\n".join(chunks)).encode("utf-8")
+    ).hexdigest()[:16]
+    cache_dir = Path(__file__).parent.parent.parent / "data" / "faiss_cache" / fingerprint
+    try:
+        # FAISS on Windows cannot open some absolute paths containing Unicode.
+        faiss_path = cache_dir.relative_to(Path.cwd())
+    except ValueError:
+        faiss_path = cache_dir
+
+    if (cache_dir / "index.faiss").exists():
+        print(f"♻️ Đang tải FAISS index từ cache ({fingerprint}) ...")
+        return FAISS.load_local(
+            str(faiss_path), embeddings, allow_dangerous_deserialization=True
+        )
+
     print(f"🔨 Đang tạo FAISS index từ {len(chunks)} chunks ...")
     vectorstore = FAISS.from_texts(chunks, embeddings)
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    vectorstore.save_local(str(faiss_path))
     print("✅ FAISS vectorstore đã sẵn sàng.")
     return vectorstore
