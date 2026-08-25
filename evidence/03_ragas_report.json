@@ -1,0 +1,22 @@
+{
+  "sample_count_per_prompt": 50,
+  "evaluation_provider": "gemini",
+  "evaluation_models": {
+    "v1": "gemini-3.1-flash-lite-preview",
+    "v2": "gemini-3.5-flash-lite"
+  },
+  "prompt_v1_scores": {
+    "faithfulness": 0.9811666666666667,
+    "answer_relevancy": 0.9643529869446481,
+    "context_recall": 0.98,
+    "context_precision": 0.8999999999198333
+  },
+  "prompt_v2_scores": {
+    "faithfulness": 0.9702063492063492,
+    "answer_relevancy": 0.9687610017958062,
+    "context_recall": 0.98,
+    "context_precision": 0.8999999999198333
+  },
+  "target_met": true,
+  "analysis": "V1 favors concise answers while V2 favors structured expert answers. Compare faithfulness and answer relevancy together: the stronger prompt is the one that improves relevance without adding unsupported claims."
+}

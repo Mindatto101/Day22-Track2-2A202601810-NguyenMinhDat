@@ -212,7 +212,9 @@ def run_ragas_eval(rag_results: list, version: str) -> dict:
             return key, value
 
         print(f"▶ {version}/{key} dùng {model_name}")
-        safe_rpm = 4 if key == "answer_relevancy" else 12
+        # A single RAGAS evaluation keeps its asyncio lifecycle intact. A single
+        # worker and conservative RPM are needed for Gemini's 15-RPM free tier.
+        safe_rpm = 6 if key == "answer_relevancy" else 10
         result = evaluate(
             dataset,
             metrics=[metric],
@@ -225,9 +227,9 @@ def run_ragas_eval(rag_results: list, version: str) -> dict:
             embeddings=emb_eval,
             run_config=RunConfig(
                 timeout=900,
-                max_retries=5,
+                max_retries=8,
                 max_wait=60,
-                max_workers=2,
+                max_workers=1,
             ),
             show_progress=False,
         )
@@ -242,18 +244,12 @@ def run_ragas_eval(rag_results: list, version: str) -> dict:
         print(f"✅ {version}/{key}: {value:.4f}")
         return key, value
 
-    # Run two waves so no two independent RAGAS executors hit the same
-    # per-model quota at once. Each wave still evaluates two metrics in parallel.
-    for start in range(0, len(metric_items), 2):
-        wave = metric_items[start:start + 2]
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = [
-                executor.submit(evaluate_metric, key, metric, models[start + index])
-                for index, (key, metric) in enumerate(wave)
-            ]
-            for future in as_completed(futures):
-                key, value = future.result()
-                scores[key] = value
+    # On Windows, repeated RAGAS evaluate() calls in worker threads can close
+    # the gRPC async event loop. Execute metrics in the main thread instead.
+    # Per-sample checkpoints make this safe to resume after a quota retry.
+    for index, (key, metric) in enumerate(metric_items):
+        key, value = evaluate_metric(key, metric, models[index])
+        scores[key] = value
 
     score_path.write_text(
         json.dumps(scores, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -306,10 +302,15 @@ def main():
         print("   Gợi ý: giảm chunk_size, tăng k, hoặc điều chỉnh prompt.")
 
     # TODO: Lưu báo cáo vào data/ragas_report.json
+    cache_dir = Path(__file__).parent.parent / ".cache" / "ragas"
+    def evaluator_model(version: str):
+        path = cache_dir / f"metric_{version}_faithfulness.json"
+        return json.loads(path.read_text(encoding="utf-8")).get("model") if path.exists() else None
+
     report = {
         "sample_count_per_prompt": len(QA_PAIRS),
         "evaluation_provider": config.PROVIDER,
-        "evaluation_model": config.GEMINI_MODEL if config.PROVIDER == "gemini" else None,
+        "evaluation_models": {"v1": evaluator_model("v1"), "v2": evaluator_model("v2")},
         "prompt_v1_scores": v1_scores,
         "prompt_v2_scores": v2_scores,
         "target_met": best_faith >= 0.8,
